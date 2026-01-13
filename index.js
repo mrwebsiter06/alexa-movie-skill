@@ -1,3 +1,7 @@
+app.get("/", (req, res) => {
+  res.send("Movie Finder API is working");
+});
+
 const express = require("express");
 const axios = require("axios");
 
