@@ -4,37 +4,38 @@ const axios = require("axios");
 const app = express();
 app.use(express.json());
 
-app.post("/", async (req, res) => {
+// REPLACE with your Google Sheet ID
+const SHEET_ID = "1vUx09iufg6L5au3YhHG7SNcXtrn29b_Swa9uYMvg7DA";
 
+// Google Sheets public CSV URL
+const SHEET_URL =
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+app.post("/", async (req, res) => {
   const movieName =
-    req.body.request.intent.slots.movie.value;
+    req.body.request.intent.slots.movie.value.toLowerCase();
 
   try {
-    const response = await axios.get(
-      "https://streaming-availability.p.rapidapi.com/search/title",
-      {
-        params: {
-          title: movieName,
-          country: "IN",
-          show_type: "movie"
-        },
-        headers: {
-          "X-RapidAPI-Key": process.env.RAPID_API_KEY,
-          "X-RapidAPI-Host":
-            "streaming-availability.p.rapidapi.com"
-        }
+    const response = await axios.get(SHEET_URL);
+    const rows = response.data.split("\n");
+
+    let found = false;
+    let platform = "";
+
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i].split(",");
+      const movie = cols[0]?.replace(/"/g, "").toLowerCase();
+
+      if (movie === movieName) {
+        platform = cols[1].replace(/"/g, "");
+        found = true;
+        break;
       }
-    );
+    }
 
-    const platforms =
-      response.data.result[0]?.streamingInfo?.in || {};
-
-    const platformNames = Object.keys(platforms);
-
-    const speechText =
-      platformNames.length > 0
-        ? `${movieName} is available on ${platformNames.join(", ")}`
-        : `I could not find ${movieName} online`;
+    const speechText = found
+      ? `${movieName} is available on ${platform}`
+      : `Sorry, I do not have streaming information for ${movieName}`;
 
     res.json({
       version: "1.0",
@@ -53,7 +54,7 @@ app.post("/", async (req, res) => {
       response: {
         outputSpeech: {
           type: "PlainText",
-          text: "Sorry, something went wrong."
+          text: "There was an error reading the movie database."
         },
         shouldEndSession: true
       }
